@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+out/
+bin/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.bak
+
+# Generated Documentation
+docs/api/
+docs/html/
+docs/latex/
+
+# OS & IDE Files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Test
+Testing/
