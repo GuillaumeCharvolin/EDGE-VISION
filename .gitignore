@@ -10,7 +10,6 @@ bin/
 *.dylib
 *.a
 *.bak
-*.onnx
 
 # Generated Documentation
 docs/api/
@@ -26,3 +25,5 @@ docs/latex/
 # Test
 Testing/
 datasets/
+models/
+onnx_gen.py

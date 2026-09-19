@@ -20,10 +20,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 ############################################################################
+# ONNX RUNTIME
+# Follow medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-cmake-5d7af482136a
+# for ubuntu
+find_package(onnxruntime REQUIRED)
+
+############################################################################
 # EDGE-VISION
-add_library(edge_vision_lib src/argParser.cxx)
+add_library(edge_vision_lib
+  src/argParser.cxx
+  src/model.cxx
+)
 target_include_directories(edge_vision_lib PUBLIC include)
-target_link_libraries(edge_vision_lib PUBLIC CLI11::CLI11)
+target_link_libraries(edge_vision_lib PUBLIC CLI11::CLI11 onnxruntime)
 
 add_executable(edge_vision src/main.cxx)
 target_link_libraries(edge_vision PRIVATE edge_vision_lib)
@@ -32,11 +41,17 @@ target_link_libraries(edge_vision PRIVATE edge_vision_lib)
 # TESTS
 enable_testing()
 
-add_executable(my_tests tests/test_argParser.cpp)
+add_executable(my_tests tests/test_argParser.cpp
+                        tests/test_model.cpp)
 target_link_libraries(my_tests PRIVATE edge_vision_lib GTest::gtest_main)
+target_compile_definitions(my_tests PRIVATE
+  EDGE_VISION_TESTS_DIR="${CMAKE_SOURCE_DIR}/tests"
+)
 
 include(GoogleTest)
-gtest_discover_tests(my_tests)
+gtest_discover_tests(my_tests
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 ############################################################################
 # DOCS
