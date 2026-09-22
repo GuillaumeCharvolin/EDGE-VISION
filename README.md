@@ -2,11 +2,16 @@
 
 Run an object-detection model on each frame on video and measures how long each stage takes.
 
-## SETUP
+## Dependency
 
-Need to setup ONNXRuntime
-Tutorial for ubuntu : 
+- OpenCV
+- ONNXRuntime
+```
+ONNXRuntime setup for Ubuntu : 
 https://medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-cmake-5d7af482136a
+```
+
+# Command
 
 ```
 ./edge-vision.sh        # build

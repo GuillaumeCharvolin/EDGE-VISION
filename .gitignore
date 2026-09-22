@@ -27,3 +27,5 @@ Testing/
 datasets/
 models/
 onnx_gen.py
+tests/_gen_image_fixtures.py
+tests/_gen_*.py
