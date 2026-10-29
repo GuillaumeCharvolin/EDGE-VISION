@@ -25,6 +25,18 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
             return std::string();
         });
 
+    app.add_option("--output", config.outputFile, "Path where the jpg image with drawn boxes is saved")
+        ->check([](const std::string& filename) {
+            const std::filesystem::path path = std::filesystem::absolute(filename);
+            if (path.extension() != ".jpg") {
+                return std::string("Output file must have a .jpg extension");
+            }
+            if (!std::filesystem::is_directory(path.parent_path())) {
+                return std::string("Output directory does not exist: ") + path.parent_path().string();
+            }
+            return std::string();
+        });
+
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
@@ -34,6 +46,9 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
 
     config.inputFile = std::filesystem::absolute(config.inputFile);
     config.modelFile = std::filesystem::absolute(config.modelFile);
+    if (!config.outputFile.empty()) {
+        config.outputFile = std::filesystem::absolute(config.outputFile);
+    }
 
     return config;
 }

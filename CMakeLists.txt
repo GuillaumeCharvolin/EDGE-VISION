@@ -36,6 +36,8 @@ add_library(edge_vision_lib
   src/argParser.cxx
   src/model.cxx
   src/preprocess.cxx
+  src/postprocess.cxx
+  src/draw.cxx
 )
 target_include_directories(edge_vision_lib PUBLIC include)
 target_link_libraries(edge_vision_lib PUBLIC CLI11::CLI11 onnxruntime ${OpenCV_LIBS})
@@ -49,7 +51,9 @@ enable_testing()
 
 add_executable(my_tests tests/test_argParser.cpp
                         tests/test_model.cpp
-                        tests/test_preprocess.cpp)
+                        tests/test_preprocess.cpp
+                        tests/test_postprocess.cpp
+                        tests/test_draw.cpp)
 target_link_libraries(my_tests PRIVATE edge_vision_lib GTest::gtest_main)
 target_compile_definitions(my_tests PRIVATE
   EDGE_VISION_TESTS_DIR="${CMAKE_SOURCE_DIR}/tests"

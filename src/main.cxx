@@ -1,5 +1,7 @@
 #include "argParser.h"
+#include "draw.h"
 #include "model.h"
+#include "postprocess.h"
 #include "preprocess.h"
 
 #include <iostream>
@@ -23,12 +25,6 @@ int main(int argc, char** argv) {
     }
     cv::Mat mat = std::move(*matOpt);
 
-    // Show the source image (close the window or press any key to continue).
-    cv::imshow("edge_vision input", mat);
-    std::cout << "Press any key in the image window to run inference...\n";
-    cv::waitKey(0);
-    cv::destroyAllWindows();
-
     Ort::AllocatorWithDefaultOptions allocator;
     auto input_node_dims = model.session().GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
     std::optional<PreprocessResult> preprocessOpt = preprocessImage(mat, input_node_dims, allocator);
@@ -50,34 +46,37 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << "Raw outputs (" << outputs.size() << "):\n";
-    for (size_t o = 0; o < outputs.size(); ++o) {
-        const auto info = outputs[o].GetTensorTypeAndShapeInfo();
-        const auto shape = info.GetShape();
-        const size_t count = info.GetElementCount();
+    const auto outputInfo = outputs[0].GetTensorTypeAndShapeInfo();
+    if (outputInfo.GetElementType() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
+        std::cerr << "Error: Model output must be a float tensor." << std::endl;
+        return 1;
+    }
 
-        std::cout << "  [" << o << "] name=" << model.outputNames()[o] << " shape=[";
-        for (size_t i = 0; i < shape.size(); ++i) {
-            if (i > 0) {
-                std::cout << ',';
-            }
-            std::cout << shape[i];
-        }
-        std::cout << "] values(" << count << ")=";
+    std::optional<std::vector<Detection>> detectionsOpt =
+        decodeOutput(outputs[0].GetTensorData<float>(), outputInfo.GetShape());
+    if (!detectionsOpt) {
+        return 1;
+    }
 
-        if (info.GetElementType() == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-            const float* data = outputs[o].GetTensorData<float>();
-            for (size_t i = 0; i < count; ++i) {
-                if (i > 0) {
-                    std::cout << ' ';
-                }
-                std::cout << data[i];
-            }
-        } else {
-            std::cout << "<non-float tensor, type=" << static_cast<int>(info.GetElementType())
-                      << ">";
+    std::vector<Detection> detections;
+    for (const Detection& letterboxed : *detectionsOpt) {
+        detections.push_back(unletterbox(letterboxed, preprocessOpt->letterbox, mat.cols, mat.rows));
+    }
+
+    std::cout << "Detections (" << detections.size() << "):\n";
+    for (const Detection& det : detections) {
+        std::cout << "  class=" << cocoClassName(det.classId) << " score=" << det.score
+                  << " x=" << det.box.x << " y=" << det.box.y
+                  << " w=" << det.box.width << " h=" << det.box.height << '\n';
+    }
+
+    if (!config.outputFile.empty()) {
+        drawDetections(mat, detections);
+        if (!cv::imwrite(config.outputFile.string(), mat)) {
+            std::cerr << "Error: Could not write the output image to: " << config.outputFile.string() << std::endl;
+            return 1;
         }
-        std::cout << '\n';
+        std::cout << "Saved " << config.outputFile.string() << '\n';
     }
 
     return 0;

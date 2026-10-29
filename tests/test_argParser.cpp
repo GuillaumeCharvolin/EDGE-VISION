@@ -97,3 +97,43 @@ TEST_F(ArgParserFixture, CorrectInput) {
     EXPECT_EQ(config.modelFile, std::filesystem::absolute(relativeModelPath));
     EXPECT_EQ(config.inputFile, std::filesystem::absolute(relativeImagePath));
 }
+
+TEST_F(ArgParserFixture, OutputIsOptional) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string()};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_TRUE(configOpt->outputFile.empty());
+}
+
+TEST_F(ArgParserFixture, OutputMustBeJpg) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--output", "out.png"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, OutputDirectoryMustExist) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--output", "dontExistDir/out.jpg"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, OutputIsMadeAbsolute) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--output", "out.jpg"};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_TRUE(configOpt->outputFile.is_absolute());
+    EXPECT_EQ(configOpt->outputFile, std::filesystem::absolute("out.jpg"));
+}

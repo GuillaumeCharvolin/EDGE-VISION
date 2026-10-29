@@ -18,4 +18,7 @@ struct AppConfig {
 
     /// The absolute path to the input given with --input (a .jpg image for now).
     std::filesystem::path inputFile;
+
+    /// The absolute path where the image with drawn boxes is saved (--output). Empty if not given.
+    std::filesystem::path outputFile;
 };
