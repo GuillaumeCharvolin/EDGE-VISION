@@ -26,6 +26,18 @@ https://medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-c
 ./edge-vision.sh -d     # build & docs
 ```
 
+# Model
+
+The model must be a YOLO exported **end-to-end**, with Non-Maximum Suppression (NMS) inside the ONNX graph
+(e.g. `models/yolov7-tiny/yolov7-tiny.onnx`). The program does not run NMS itself: it expects the output
+to be already filtered, with one row per detection:
+
+```
+[batch_id, x0, y0, x1, y1, class_id, score]   # shape [N, 7], coordinates in model input pixels
+```
+
+A model exported without NMS (raw `[1, 25200, 85]` output) is rejected with a wrong output shape error.
+
 # Output format
 
 `--detections dets.csv` writes one header line, then one row per detection:
