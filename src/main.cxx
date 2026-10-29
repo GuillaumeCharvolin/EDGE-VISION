@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     }
     Model model = std::move(*modelOpt);
 
-    std::optional<cv::Mat> matOpt = loadImage(config.imageFile);
+    std::optional<cv::Mat> matOpt = loadImage(config.inputFile);
     if (!matOpt) {
         return 1;
     }

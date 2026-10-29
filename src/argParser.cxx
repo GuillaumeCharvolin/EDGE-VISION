@@ -15,12 +15,12 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
             return std::string();
         });
 
-    app.add_option("--image", config.imageFile, "Path to jpg image file")
+    app.add_option("--input", config.inputFile, "Path to the input jpg image file")
         ->required()
         ->check(CLI::ExistingFile)
         ->check([](const std::string& filename) {
             if (std::filesystem::path(filename).extension() != ".jpg") {
-                return std::string("Image file must have a .jpg extension");
+                return std::string("Input file must have a .jpg extension");
             };
             return std::string();
         });
@@ -32,7 +32,7 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
         return std::nullopt;
     }
 
-    config.imageFile = std::filesystem::absolute(config.imageFile);
+    config.inputFile = std::filesystem::absolute(config.inputFile);
     config.modelFile = std::filesystem::absolute(config.modelFile);
 
     return config;

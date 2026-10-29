@@ -3,8 +3,8 @@
 #   ./edge-vision.sh                              # configure + build
 #   ./edge-vision.sh -t                           # build, then run tests
 #   ./edge-vision.sh -r                           # build, then run the program
-#   ./edge-vision.sh -r --model m.onnx --image a.jpg
-#   ./edge-vision.sh -r --model m.onnx --image a.jpg -t
+#   ./edge-vision.sh -r --model m.onnx --input a.jpg
+#   ./edge-vision.sh -r --model m.onnx --input a.jpg -t
 #                                                 # run with those args, then tests
 #   ./edge-vision.sh -d                           # build, then generate and open docs
 #

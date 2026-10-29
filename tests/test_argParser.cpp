@@ -36,14 +36,14 @@ TEST(ArgParserTest, UnknownArguments) {
 }
 
 TEST(ArgParserTest, ArgumentsWithoutFiles) {
-    std::vector<std::string> args = {"edge_vision", "--model", "--image"};
+    std::vector<std::string> args = {"edge_vision", "--model", "--input"};
     auto argv = makeArgv(args);
     EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
 }
 
 TEST(ArgParserTest, FilesDontExist) {
     std::vector<std::string> args = {
-        "edge_vision", "--model", "dontExistModel.onnx", "--image", "dontExistImage.jpg"};
+        "edge_vision", "--model", "dontExistModel.onnx", "--input", "dontExistImage.jpg"};
     auto argv = makeArgv(args);
     EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
 }
@@ -65,12 +65,12 @@ protected:
 };
 
 TEST_F(ArgParserFixture, WrongFormatFiles) {
-    // Swap on purpose: image path for --model, model path for --image.
+    // Swap on purpose: image path for --model, model path for --input.
     std::vector<std::string> args = {
         "edge_vision",
         "--model",
         relativeImagePath.string(),
-        "--image",
+        "--input",
         relativeModelPath.string()};
     auto argv = makeArgv(args);
 
@@ -82,7 +82,7 @@ TEST_F(ArgParserFixture, CorrectInput) {
         "edge_vision",
         "--model",
         relativeModelPath.string(),
-        "--image",
+        "--input",
         relativeImagePath.string()};
     auto argv = makeArgv(args);
 
@@ -92,8 +92,8 @@ TEST_F(ArgParserFixture, CorrectInput) {
     AppConfig config = *configOpt;
 
     EXPECT_TRUE(config.modelFile.is_absolute());
-    EXPECT_TRUE(config.imageFile.is_absolute());
+    EXPECT_TRUE(config.inputFile.is_absolute());
 
     EXPECT_EQ(config.modelFile, std::filesystem::absolute(relativeModelPath));
-    EXPECT_EQ(config.imageFile, std::filesystem::absolute(relativeImagePath));
+    EXPECT_EQ(config.inputFile, std::filesystem::absolute(relativeImagePath));
 }

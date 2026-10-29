@@ -16,6 +16,6 @@ struct AppConfig {
     /// The absolute path to the onnx model weights used.
     std::filesystem::path modelFile;
 
-    /// The absolute path to the jpg image used.
-    std::filesystem::path imageFile;
+    /// The absolute path to the input given with --input (a .jpg image for now).
+    std::filesystem::path inputFile;
 };
