@@ -21,4 +21,7 @@ struct AppConfig {
 
     /// The absolute path where the image with drawn boxes is saved (--output). Empty if not given.
     std::filesystem::path outputFile;
+
+    /// The absolute path where the detections are saved as csv (--detections). Empty if not given.
+    std::filesystem::path detectionsFile;
 };

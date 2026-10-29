@@ -137,3 +137,32 @@ TEST_F(ArgParserFixture, OutputIsMadeAbsolute) {
     EXPECT_TRUE(configOpt->outputFile.is_absolute());
     EXPECT_EQ(configOpt->outputFile, std::filesystem::absolute("out.jpg"));
 }
+
+TEST_F(ArgParserFixture, DetectionsAcceptsCsv) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--detections", "dets.csv"};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_EQ(configOpt->detectionsFile, std::filesystem::absolute("dets.csv"));
+}
+
+TEST_F(ArgParserFixture, DetectionsMustBeCsv) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--detections", "dets.txt"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, DetectionsDirectoryMustExist) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--detections", "dontExistDir/dets.csv"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}

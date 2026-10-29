@@ -2,8 +2,10 @@
 #include "draw.h"
 #include "model.h"
 #include "postprocess.h"
+#include "serialize.h"
 #include "preprocess.h"
 
+#include <fstream>
 #include <iostream>
 
 int main(int argc, char** argv) {
@@ -77,6 +79,16 @@ int main(int argc, char** argv) {
             return 1;
         }
         std::cout << "Saved " << config.outputFile.string() << '\n';
+    }
+
+    if (!config.detectionsFile.empty()) {
+        std::ofstream csv(config.detectionsFile);
+        if (!csv) {
+            std::cerr << "Error: Could not open the detections file: " << config.detectionsFile.string() << std::endl;
+            return 1;
+        }
+        writeDetectionsCsv(csv, detections);
+        std::cout << "Saved " << config.detectionsFile.string() << '\n';
     }
 
     return 0;
