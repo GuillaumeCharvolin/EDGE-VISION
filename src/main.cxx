@@ -31,11 +31,11 @@ int main(int argc, char** argv) {
 
     Ort::AllocatorWithDefaultOptions allocator;
     auto input_node_dims = model.session().GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    std::optional<Ort::Value> inputTensorOpt = preprocessImage(mat, input_node_dims, allocator);
-    if (!inputTensorOpt) {
+    std::optional<PreprocessResult> preprocessOpt = preprocessImage(mat, input_node_dims, allocator);
+    if (!preprocessOpt) {
         return 1;
     }
-    Ort::Value input_tensor = std::move(*inputTensorOpt);
+    Ort::Value input_tensor = std::move(preprocessOpt->tensor);
 
     std::vector<Ort::Value> outputs;
     try {

@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include "preprocess.h"
 
@@ -12,7 +14,29 @@ std::optional<cv::Mat> loadImage(const std::filesystem::path& imageFile) {
     return std::optional<cv::Mat>(img);
 }
 
-std::optional<Ort::Value> preprocessImage(
+cv::Mat letterbox(const cv::Mat& mat, int targetWidth, int targetHeight, LetterboxInfo& info) {
+    info.scale = std::min(static_cast<float>(targetWidth) / mat.cols,
+                          static_cast<float>(targetHeight) / mat.rows);
+
+    const int newWidth = static_cast<int>(std::round(mat.cols * info.scale));
+    const int newHeight = static_cast<int>(std::round(mat.rows * info.scale));
+
+    // Split the padding in two; the extra pixel (odd padding) goes right / bottom.
+    info.padX = (targetWidth - newWidth) / 2;
+    info.padY = (targetHeight - newHeight) / 2;
+
+    cv::Mat resized;
+    cv::resize(mat, resized, cv::Size(newWidth, newHeight));
+
+    cv::Mat out;
+    cv::copyMakeBorder(resized, out,
+                       info.padY, targetHeight - newHeight - info.padY,
+                       info.padX, targetWidth - newWidth - info.padX,
+                       cv::BORDER_CONSTANT, cv::Scalar(114, 114, 114));
+    return out;
+}
+
+std::optional<PreprocessResult> preprocessImage(
     const cv::Mat& mat,
     std::vector<int64_t> input_node_dims,
     Ort::AllocatorWithDefaultOptions& allocator) {
@@ -40,8 +64,8 @@ std::optional<Ort::Value> preprocessImage(
     }
 
     try {
-        cv::Mat resized;
-        cv::resize(mat, resized, cv::Size(target_width, target_height));
+        LetterboxInfo info;
+        cv::Mat resized = letterbox(mat, target_width, target_height, info);
         // Allocate self-owning tensor via ONNX Runtime*
         Ort::Value tensor = Ort::Value::CreateTensor<float>(
             allocator, 
@@ -69,7 +93,7 @@ std::optional<Ort::Value> preprocessImage(
             r_plane[i] = static_cast<float>(src_ptr[i * 3 + 2]) * scale;
         }
 
-        return tensor;
+        return PreprocessResult{std::move(tensor), info};
 
     } catch (const cv::Exception& e) {
         std::cerr << "OpenCV Error: " << e.what() << std::endl;
