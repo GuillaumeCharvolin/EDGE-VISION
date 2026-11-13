@@ -29,3 +29,6 @@ models/
 onnx_gen.py
 tests/_gen_image_fixtures.py
 tests/_gen_*.py
+
+# Samples (downloaded by scripts/download_sample.sh)
+samples/

@@ -1,9 +1,9 @@
 #include "argParser.h"
 #include "draw.h"
 #include "model.h"
-#include "postprocess.h"
-#include "serialize.h"
+#include "pipeline.h"
 #include "preprocess.h"
+#include "serialize.h"
 
 #include <fstream>
 #include <iostream>
@@ -27,43 +27,11 @@ int main(int argc, char** argv) {
     }
     cv::Mat mat = std::move(*matOpt);
 
-    Ort::AllocatorWithDefaultOptions allocator;
-    auto input_node_dims = model.session().GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    std::optional<PreprocessResult> preprocessOpt = preprocessImage(mat, input_node_dims, allocator);
-    if (!preprocessOpt) {
-        return 1;
-    }
-    Ort::Value input_tensor = std::move(preprocessOpt->tensor);
-
-    std::vector<Ort::Value> outputs;
-    try {
-        outputs = model.session().Run(Ort::RunOptions{nullptr},
-                                      model.inputNamePtrs().data(),
-                                      &input_tensor,
-                                      1,
-                                      model.outputNamePtrs().data(),
-                                      model.outputNamePtrs().size());
-    } catch (const Ort::Exception& e) {
-        std::cerr << "ONNX Runtime Run failed: " << e.what() << std::endl;
-        return 1;
-    }
-
-    const auto outputInfo = outputs[0].GetTensorTypeAndShapeInfo();
-    if (outputInfo.GetElementType() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-        std::cerr << "Error: Model output must be a float tensor." << std::endl;
-        return 1;
-    }
-
-    std::optional<std::vector<Detection>> detectionsOpt =
-        decodeOutput(outputs[0].GetTensorData<float>(), outputInfo.GetShape());
+    std::optional<std::vector<Detection>> detectionsOpt = detect(model, mat);
     if (!detectionsOpt) {
         return 1;
     }
-
-    std::vector<Detection> detections;
-    for (const Detection& letterboxed : *detectionsOpt) {
-        detections.push_back(unletterbox(letterboxed, preprocessOpt->letterbox, mat.cols, mat.rows));
-    }
+    const std::vector<Detection>& detections = *detectionsOpt;
 
     std::cout << "Detections (" << detections.size() << "):\n";
     for (const Detection& det : detections) {
