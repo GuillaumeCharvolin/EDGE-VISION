@@ -22,6 +22,30 @@ void onSigint(int) {
 
 const char* const windowName = "edge_vision";
 
+// Draw the boxes on the image and save it. Returns false (with an error message) on failure.
+bool saveImageWithBoxes(cv::Mat& image, const std::vector<Detection>& detections,
+                        const std::filesystem::path& file) {
+    drawDetections(image, detections);
+    if (!cv::imwrite(file.string(), image)) {
+        std::cerr << "Error: Could not write the output image to: " << file.string() << std::endl;
+        return false;
+    }
+    std::cout << "Saved " << file.string() << '\n';
+    return true;
+}
+
+// Save the detections as CSV. Returns false (with an error message) on failure.
+bool saveDetectionsCsv(const std::vector<Detection>& detections, const std::filesystem::path& file) {
+    std::ofstream csv(file);
+    if (!csv) {
+        std::cerr << "Error: Could not open the detections file: " << file.string() << std::endl;
+        return false;
+    }
+    writeDetectionsCsv(csv, detections);
+    std::cout << "Saved " << file.string() << '\n';
+    return true;
+}
+
 // Rate written in the output video: the input's rate, so a video file plays at normal speed.
 // For a camera this is the camera rate, higher than what we process: the recording plays too fast.
 double inputFps(cv::VideoCapture& capture) {
@@ -107,44 +131,23 @@ void stopOnCtrlC() {
 }
 
 int runImage(Model& model, const AppConfig& config) {
-    std::optional<cv::Mat> matOpt = loadImage(config.inputFile);
-    if (!matOpt) {
+    std::optional<cv::Mat> image = loadImage(config.inputFile);
+    if (!image) {
         return 1;
     }
-    cv::Mat mat = std::move(*matOpt);
 
-    std::optional<std::vector<Detection>> detectionsOpt = detect(model, mat);
-    if (!detectionsOpt) {
+    std::optional<std::vector<Detection>> detections = detect(model, *image);
+    if (!detections) {
         return 1;
     }
-    const std::vector<Detection>& detections = *detectionsOpt;
+    writeDetectionsText(std::cout, *detections);
 
-    std::cout << "Detections (" << detections.size() << "):\n";
-    for (const Detection& det : detections) {
-        std::cout << "  class=" << cocoClassName(det.classId) << " score=" << det.score
-                  << " x=" << det.box.x << " y=" << det.box.y
-                  << " w=" << det.box.width << " h=" << det.box.height << '\n';
+    if (!config.outputFile.empty() && !saveImageWithBoxes(*image, *detections, config.outputFile)) {
+        return 1;
     }
-
-    if (!config.outputFile.empty()) {
-        drawDetections(mat, detections);
-        if (!cv::imwrite(config.outputFile.string(), mat)) {
-            std::cerr << "Error: Could not write the output image to: " << config.outputFile.string() << std::endl;
-            return 1;
-        }
-        std::cout << "Saved " << config.outputFile.string() << '\n';
+    if (!config.detectionsFile.empty() && !saveDetectionsCsv(*detections, config.detectionsFile)) {
+        return 1;
     }
-
-    if (!config.detectionsFile.empty()) {
-        std::ofstream csv(config.detectionsFile);
-        if (!csv) {
-            std::cerr << "Error: Could not open the detections file: " << config.detectionsFile.string() << std::endl;
-            return 1;
-        }
-        writeDetectionsCsv(csv, detections);
-        std::cout << "Saved " << config.detectionsFile.string() << '\n';
-    }
-
     return 0;
 }
 

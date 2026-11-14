@@ -14,6 +14,15 @@ void writeDetectionsCsv(std::ostream& out, const std::vector<Detection>& detecti
     }
 }
 
+void writeDetectionsText(std::ostream& out, const std::vector<Detection>& detections) {
+    out << "Detections (" << detections.size() << "):\n";
+    for (const Detection& det : detections) {
+        out << "  class=" << cocoClassName(det.classId) << " score=" << det.score
+            << " x=" << det.box.x << " y=" << det.box.y
+            << " w=" << det.box.width << " h=" << det.box.height << '\n';
+    }
+}
+
 void writeTimingsCsvHeader(std::ostream& out) {
     out << "frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms\n";
 }

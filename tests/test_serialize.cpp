@@ -5,6 +5,17 @@
 
 #include "serialize.h"
 
+TEST(WriteDetectionsTextTest, CountThenOneLinePerDetection) {
+    std::ostringstream out;
+    writeDetectionsText(out, {{2, 0.758534f, cv::Rect2f(441.131f, 543.643f, 59.3481f, 47.5384f)},
+                              {0, 0.5f, cv::Rect2f(1, 2, 3, 4)}});
+
+    EXPECT_EQ(out.str(),
+              "Detections (2):\n"
+              "  class=car score=0.758534 x=441.131 y=543.643 w=59.3481 h=47.5384\n"
+              "  class=person score=0.5 x=1 y=2 w=3 h=4\n");
+}
+
 TEST(WriteDetectionsCsvTest, NoDetectionWritesHeaderOnly) {
     std::ostringstream out;
     writeDetectionsCsv(out, {});

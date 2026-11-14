@@ -23,6 +23,16 @@
 void writeDetectionsCsv(std::ostream& out, const std::vector<Detection>& detections);
 
 /**
+ * @brief Write detections as readable text, for the console: a count line, then one line per detection.
+ *
+ * Example: "  class=car score=0.758534 x=441.131 y=543.643 w=59.3481 h=47.5384"
+ *
+ * @param out Stream to write to (std::cout, or a string stream in tests).
+ * @param detections Detections in original image coordinates.
+ */
+void writeDetectionsText(std::ostream& out, const std::vector<Detection>& detections);
+
+/**
  * @brief Write the header line of the timings CSV.
  *
  * Columns: frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms
