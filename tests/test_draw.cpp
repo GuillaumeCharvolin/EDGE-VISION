@@ -33,3 +33,13 @@ TEST(DrawDetectionsTest, NoDetectionLeavesImageUnchanged) {
 
     EXPECT_EQ(cv::norm(mat, before, cv::NORM_INF), 0.0);
 }
+
+TEST(DrawFpsTest, DrawsInTopLeftCornerOnly) {
+    cv::Mat mat(200, 300, CV_8UC3, cv::Scalar(50, 50, 50));
+
+    drawFps(mat, 12.34);
+
+    const cv::Vec3b gray(50, 50, 50);
+    EXPECT_NE(mat.at<cv::Vec3b>(2, 2), gray);       // black background of the label
+    EXPECT_EQ(mat.at<cv::Vec3b>(190, 290), gray);   // bottom-right untouched
+}

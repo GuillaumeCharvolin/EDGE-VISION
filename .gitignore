@@ -32,3 +32,8 @@ tests/_gen_*.py
 
 # Samples (downloaded by scripts/download_sample.sh)
 samples/
+
+# Program outputs written at the repo root (--output, --detections)
+/*.jpg
+/*.mp4
+/*.csv

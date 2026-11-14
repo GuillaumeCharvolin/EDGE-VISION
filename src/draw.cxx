@@ -47,3 +47,14 @@ void drawDetections(cv::Mat& mat, const std::vector<Detection>& detections) {
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
     }
 }
+
+void drawFps(cv::Mat& mat, double fps) {
+    char label[32];
+    std::snprintf(label, sizeof(label), "FPS: %.1f", fps);
+
+    int baseline = 0;
+    const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.7, 2, &baseline);
+    cv::rectangle(mat, cv::Rect(0, 0, textSize.width + 20, textSize.height + 20), cv::Scalar(0, 0, 0), cv::FILLED);
+    cv::putText(mat, label, cv::Point(10, textSize.height + 10),
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+}

@@ -23,3 +23,10 @@ std::string cocoClassName(int classId);
  * @param detections Detections in image coordinates.
  */
 void drawDetections(cv::Mat& mat, const std::vector<Detection>& detections);
+
+/**
+ * @brief Draw "FPS: <value>" in the top-left corner of the image, on a black background, in place.
+ * @param mat The image to draw on (BGR, CV_8UC3).
+ * @param fps Frames per second to display, with one decimal.
+ */
+void drawFps(cv::Mat& mat, double fps);

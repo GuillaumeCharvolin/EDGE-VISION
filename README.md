@@ -22,6 +22,9 @@ https://medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-c
 # build & run, save the image with boxes and the detections
 ./edge-vision.sh -r --model path/to/model.onnx --input path/to/img.jpg --output out.jpg --detections dets.csv
 
+# build & run on a video, save it with boxes and FPS (sample: ./scripts/download_sample.sh)
+./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input samples/vtest.avi --output out.mp4
+
 ./edge-vision.sh -t     # build & tests
 ./edge-vision.sh -d     # build & docs
 ```

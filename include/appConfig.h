@@ -16,10 +16,10 @@ struct AppConfig {
     /// The absolute path to the onnx model weights used.
     std::filesystem::path modelFile;
 
-    /// The absolute path to the input given with --input (a .jpg image for now).
+    /// The absolute path to the input given with --input (a .jpg image, or a .mp4/.avi video).
     std::filesystem::path inputFile;
 
-    /// The absolute path where the image with drawn boxes is saved (--output). Empty if not given.
+    /// The absolute path where the image (.jpg) or video (.mp4) with drawn boxes is saved (--output). Empty if not given.
     std::filesystem::path outputFile;
 
     /// The absolute path where the detections are saved as csv (--detections). Empty if not given.
