@@ -40,6 +40,7 @@ add_library(edge_vision_lib
   src/draw.cxx
   src/serialize.cxx
   src/pipeline.cxx
+  src/run.cxx
 )
 target_include_directories(edge_vision_lib PUBLIC include)
 target_link_libraries(edge_vision_lib PUBLIC CLI11::CLI11 onnxruntime ${OpenCV_LIBS})
