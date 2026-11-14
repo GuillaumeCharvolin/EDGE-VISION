@@ -3,9 +3,9 @@
 #include "pipeline.h"
 #include "preprocess.h"
 #include "serialize.h"
+#include "stream.h"
 
 #include <atomic>
-#include <chrono>
 #include <csignal>
 #include <fstream>
 #include <iostream>
@@ -20,89 +20,63 @@ void onSigint(int) {
     stopRequested = true;
 }
 
+const char* const windowName = "edge_vision";
+
+// Rate written in the output video: the input's rate, so a video file plays at normal speed.
+// For a camera this is the camera rate, higher than what we process: the recording plays too fast.
+double inputFps(cv::VideoCapture& capture) {
+    const double fps = capture.get(cv::CAP_PROP_FPS);
+    return fps > 0 ? fps : 30.0;
+}
+
+// Show the frame in a window. Returns true if the user pressed 'q' or Esc.
+bool showAndCheckQuit(const cv::Mat& frame) {
+    cv::imshow(windowName, frame);
+    const int key = cv::waitKey(1);
+    return key == 'q' || key == 27;  // 27 = Esc
+}
+
 // Frame loop shared by video files and cameras. With showWindow, frames are displayed live
 // and 'q' or Esc stops the loop.
 int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, bool showWindow) {
-    using Clock = std::chrono::steady_clock;
-    const std::string windowName = "edge_vision";
-
-    // Write the output at the same rate as the input, so a video file plays at normal speed.
-    // For a camera this is the camera rate, higher than what we process: the recording plays too fast.
-    double inputFps = capture.get(cv::CAP_PROP_FPS);
-    if (inputFps <= 0) {
-        inputFps = 30.0;
+    TimingsLog timingsLog;
+    if (!config.timingsFile.empty() && !timingsLog.open(config.timingsFile, config.warmupFrames)) {
+        return 1;
     }
-    cv::VideoWriter writer;
-
-    std::ofstream timingsCsv;
-    if (!config.timingsFile.empty()) {
-        timingsCsv.open(config.timingsFile);
-        if (!timingsCsv) {
-            std::cerr << "Error: Could not open the timings file: " << config.timingsFile.string() << std::endl;
-            return 1;
-        }
-        writeTimingsCsvHeader(timingsCsv);
-    }
+    VideoOutput video(config.outputFile, inputFps(capture));
+    FpsMeter fps;
 
     cv::Mat frame;
     int frameCount = 0;
-    double smoothedFps = 0.0;
-    const Clock::time_point start = Clock::now();
-    Clock::time_point previous = start;
-
     while (!stopRequested) {
         StageTimings timings;
         const Clock::time_point frameStart = Clock::now();
         if (!capture.read(frame)) {
             break;  // end of the video file, or camera disconnected
         }
-        timings.captureMs = std::chrono::duration<double, std::milli>(Clock::now() - frameStart).count();
+        timings.captureMs = millisecondsSince(frameStart);
 
-        std::optional<std::vector<Detection>> detectionsOpt = detect(model, frame, &timings);
-        if (!detectionsOpt) {
+        std::optional<std::vector<Detection>> detections = detect(model, frame, &timings);
+        if (!detections) {
             return 1;
         }
-        drawDetections(frame, *detectionsOpt);
+        drawDetections(frame, *detections);
+        const double currentFps = fps.tick();
+        drawFps(frame, currentFps);
 
-        // FPS from the time between two frames (read + detect + draw + write),
-        // smoothed so the number does not jump at every frame.
-        const Clock::time_point now = Clock::now();
-        const double frameSeconds = std::chrono::duration<double>(now - previous).count();
-        previous = now;
-        const double instantFps = frameSeconds > 0 ? 1.0 / frameSeconds : 0.0;
-        smoothedFps = frameCount == 0 ? instantFps : 0.9 * smoothedFps + 0.1 * instantFps;
-        drawFps(frame, smoothedFps);
-
-        if (!config.outputFile.empty()) {
-            // Opened on the first frame, once the frame size is known.
-            if (!writer.isOpened()) {
-                writer.open(config.outputFile.string(), cv::VideoWriter::fourcc('m', 'p', '4', 'v'),
-                            inputFps, frame.size());
-                if (!writer.isOpened()) {
-                    std::cerr << "Error: Could not write the output video to: " << config.outputFile.string() << std::endl;
-                    return 1;
-                }
-            }
-            writer.write(frame);
+        if (!video.write(frame)) {
+            return 1;
+        }
+        if (showWindow && showAndCheckQuit(frame)) {
+            stopRequested = true;
         }
 
-        if (showWindow) {
-            cv::imshow(windowName, frame);
-            const int key = cv::waitKey(1);
-            if (key == 'q' || key == 27) {  // 27 = Esc
-                stopRequested = true;
-            }
-        }
-
-        // Warm-up frames are slower (memory allocation, cold caches) and left out of the csv.
-        if (timingsCsv.is_open() && frameCount >= config.warmupFrames) {
-            timings.totalMs = std::chrono::duration<double, std::milli>(Clock::now() - frameStart).count();
-            writeTimingsCsvRow(timingsCsv, frameCount, timings);
-        }
+        timings.totalMs = millisecondsSince(frameStart);
+        timingsLog.record(frameCount, timings);
 
         ++frameCount;
         if (frameCount % 100 == 0) {
-            std::cout << "  " << frameCount << " frames, FPS " << smoothedFps << '\n';
+            std::cout << "  " << frameCount << " frames, FPS " << currentFps << '\n';
         }
     }
 
@@ -111,20 +85,16 @@ int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, 
     }
     if (stopRequested) {
         std::cout << "Stopped by user\n";
-    }
-
-    if (frameCount == 0 && !stopRequested) {
+    } else if (frameCount == 0) {
         std::cerr << "Error: No frame could be read from the input" << std::endl;
         return 1;
     }
 
-    const double totalSeconds = std::chrono::duration<double>(Clock::now() - start).count();
-    std::cout << "Processed " << frameCount << " frames, mean FPS "
-              << (totalSeconds > 0 ? frameCount / totalSeconds : 0.0) << '\n';
+    std::cout << "Processed " << frameCount << " frames, mean FPS " << fps.meanFps() << '\n';
     if (!config.outputFile.empty()) {
         std::cout << "Saved " << config.outputFile.string() << '\n';
     }
-    if (timingsCsv.is_open()) {
+    if (timingsLog.isOpen()) {
         std::cout << "Saved " << config.timingsFile.string() << '\n';
     }
     return 0;
