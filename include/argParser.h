@@ -4,22 +4,23 @@
 
 /**
  * @file argParser.h
- * @brief Public API for argParser.
+ * @brief Command-line options of the program.
  */
 
 /**
- * @brief Parsing of arguments given to the program file with --args
+ * @brief Read and check the command-line options.
  *
- * --input can be a .jpg image, a .mp4/.avi video, or a camera index (e.g. 0). --output must match it
- * (.jpg for an image, .mp4 for a video or camera), and --detections is refused for a video or camera.
+ * - --model (required): an existing .onnx file.
+ * - --input (required): a .jpg image, a .mp4/.avi video, or a camera index (e.g. 0).
+ * - --output: .jpg for an image, .mp4 for a video or camera.
+ * - --detections: .csv, image input only (for now).
+ * - --timings: .csv, video or camera input only. --warmup: frames left out of it.
  *
- * This function ensure the required arguments are given to the program, verify their compliance (file exist, correct format)
- * and make these arguments ready to be used.
+ * On error, a message is printed and nullopt is returned. All paths in the result are absolute.
  *
- * @param argc number of argumentes given to the program (separated by spaces)
- * @param argv pointer to the list of string given to the program.
- * 
- * @return An object AppConfig if the parsing succeed, nullopt if not.
+ * @param argc Number of arguments, as given to main().
+ * @param argv The arguments, as given to main().
+ * @return The checked configuration, or nullopt if an option is missing or invalid.
  */
 std::optional<AppConfig> parseArguments(int argc, char** argv);
 
