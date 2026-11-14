@@ -16,8 +16,8 @@ double millisecondsBetween(Clock::time_point from, Clock::time_point to) {
 std::optional<std::vector<Detection>> detect(Model& model, const cv::Mat& frame, StageTimings* timings) {
     const Clock::time_point preprocessStart = Clock::now();
     Ort::AllocatorWithDefaultOptions allocator;
-    auto input_node_dims = model.session().GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-    std::optional<PreprocessResult> preprocessOpt = preprocessImage(frame, input_node_dims, allocator);
+    const std::vector<int64_t> inputDims = model.session().GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
+    std::optional<PreprocessResult> preprocessOpt = preprocessImage(frame, inputDims, allocator);
     if (!preprocessOpt) {
         return std::nullopt;
     }

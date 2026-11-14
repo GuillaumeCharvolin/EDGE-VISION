@@ -4,14 +4,12 @@
 #include "preprocess.h"
 
 std::optional<cv::Mat> loadImage(const std::filesystem::path& imageFile) {
-    cv::Mat img = cv::imread(imageFile.string(), cv::IMREAD_COLOR);
-
-    if (img.empty()) {
+    cv::Mat image = cv::imread(imageFile.string(), cv::IMREAD_COLOR);
+    if (image.empty()) {
         std::cerr << "Error: Could not open the image at: " << imageFile.string() << std::endl;
         return std::nullopt;
     }
-
-    return std::optional<cv::Mat>(img);
+    return image;
 }
 
 cv::Mat letterbox(const cv::Mat& mat, int targetWidth, int targetHeight, LetterboxInfo& info) {
@@ -36,75 +34,54 @@ cv::Mat letterbox(const cv::Mat& mat, int targetWidth, int targetHeight, Letterb
     return out;
 }
 
-std::optional<PreprocessResult> preprocessImage(
-    const cv::Mat& mat,
-    std::vector<int64_t> input_node_dims,
-    Ort::AllocatorWithDefaultOptions& allocator) {
+void bgrToPlanarRgb(const cv::Mat& image, float* tensorData) {
+    const int planeSize = image.rows * image.cols;
+    float* red = tensorData;
+    float* green = tensorData + planeSize;
+    float* blue = tensorData + 2 * planeSize;
 
-    if (input_node_dims.size() < 4) {
-        std::cerr << "Error: Invalid number of parameters for the shaped of aimed tensor." << std::endl;
+    // OpenCV stores the pixels row by row as B, G, R bytes. The model wants one plane per
+    // colour, R first, with values in [0, 1].
+    const cv::Mat continuous = image.isContinuous() ? image : image.clone();
+    const uint8_t* pixel = continuous.data;
+    for (int i = 0; i < planeSize; ++i, pixel += 3) {
+        blue[i] = pixel[0] / 255.0f;
+        green[i] = pixel[1] / 255.0f;
+        red[i] = pixel[2] / 255.0f;
+    }
+}
+
+std::optional<PreprocessResult> preprocessImage(const cv::Mat& mat,
+                                                const std::vector<int64_t>& inputDims,
+                                                Ort::AllocatorWithDefaultOptions& allocator) {
+    if (inputDims.size() != 4) {
+        std::cerr << "Error: Model input must be 4D [N, C, H, W], got " << inputDims.size() << " dimensions."
+                  << std::endl;
         return std::nullopt;
     }
-    if (mat.channels() != 3) {
-        std::cerr << "Input image must have 3 channels (BGR). Got: " << 
-                                    std::to_string(mat.channels()) << std::endl;
+    const int64_t targetHeight = inputDims[2];
+    const int64_t targetWidth = inputDims[3];
+    if (targetWidth <= 0 || targetHeight <= 0) {
+        std::cerr << "Error: Model input height and width must be fixed positive sizes." << std::endl;
         return std::nullopt;
     }
-    if (mat.depth() != CV_8U) {
-        std::cerr << "Input image must be 8-bit unsigned (CV_8U)." << std::endl;
-        return std::nullopt;
-    }
-
-    int64_t target_height = input_node_dims[2];
-    int64_t target_width = input_node_dims[3];
-
-    if (target_width <= 0 || target_height <= 0) {
-        std::cerr << "Target dimensions must be greater than zero." << std::endl;
+    if (mat.type() != CV_8UC3) {
+        std::cerr << "Error: Image must be 8-bit with 3 channels (BGR)." << std::endl;
         return std::nullopt;
     }
 
     try {
         LetterboxInfo info;
-        cv::Mat resized = letterbox(mat, target_width, target_height, info);
-        // Allocate self-owning tensor via ONNX Runtime*
-        Ort::Value tensor = Ort::Value::CreateTensor<float>(
-            allocator, 
-            input_node_dims.data(), 
-            input_node_dims.size()
-        );
+        const cv::Mat resized = letterbox(mat, targetWidth, targetHeight, info);
 
-        // Get pointer to the tensor's continuous float buffer
-        float* tensor_data = tensor.GetTensorMutableData<float>();
-        const int plane_size = target_height * target_width;
-
-        // Planar channel offsets for NCHW [R, G, B]
-        float* r_plane = tensor_data;
-        float* g_plane = tensor_data + plane_size;
-        float* b_plane = tensor_data + (2 * plane_size);
-
-        // Single-pass write: BGR (uint8) -> Planar RGB (float [0.0, 1.0])
-        const uint8_t* src_ptr = resized.data;
-        const float scale = 1.0f / 255.0f;
-
-        for (int i = 0; i < plane_size; ++i) {
-            // OpenCV stores pixels as [B, G, R] interleaved
-            b_plane[i] = static_cast<float>(src_ptr[i * 3 + 0]) * scale;
-            g_plane[i] = static_cast<float>(src_ptr[i * 3 + 1]) * scale;
-            r_plane[i] = static_cast<float>(src_ptr[i * 3 + 2]) * scale;
-        }
+        Ort::Value tensor = Ort::Value::CreateTensor<float>(allocator, inputDims.data(), inputDims.size());
+        bgrToPlanarRgb(resized, tensor.GetTensorMutableData<float>());
 
         return PreprocessResult{std::move(tensor), info};
-
     } catch (const cv::Exception& e) {
-        std::cerr << "OpenCV Error: " << e.what() << std::endl;
-        return std::nullopt;
+        std::cerr << "Error: OpenCV: " << e.what() << std::endl;
     } catch (const Ort::Exception& e) {
-        std::cerr << "ONNX Runtime Error: " << e.what() << std::endl;
-        return std::nullopt;
-    } catch (const std::bad_alloc& e) {
-        std::cerr << "Out of memory allocating tensor: " << e.what() << std::endl;
-        return std::nullopt;
+        std::cerr << "Error: ONNX Runtime: " << e.what() << std::endl;
     }
     return std::nullopt;
 }
- 

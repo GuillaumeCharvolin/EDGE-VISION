@@ -42,6 +42,24 @@ TEST(LoadImageTest, LoadsColorJpeg) {
     EXPECT_EQ(mat.depth(), CV_8U);
 }
 
+TEST(BgrToPlanarRgbTest, SplitsPixelsIntoRgbPlanes) {
+    // 1x2 image: a red pixel then a blue pixel (OpenCV order is B, G, R).
+    cv::Mat image(1, 2, CV_8UC3);
+    image.at<cv::Vec3b>(0, 0) = {0, 51, 255};   // B=0, G=51 (0.2), R=255 (1.0)
+    image.at<cv::Vec3b>(0, 1) = {255, 0, 102};  // B=255 (1.0), G=0, R=102 (0.4)
+
+    float data[6] = {};
+    bgrToPlanarRgb(image, data);
+
+    // Planes: R R | G G | B B
+    EXPECT_FLOAT_EQ(data[0], 1.0f);
+    EXPECT_FLOAT_EQ(data[1], 0.4f);
+    EXPECT_FLOAT_EQ(data[2], 0.2f);
+    EXPECT_FLOAT_EQ(data[3], 0.0f);
+    EXPECT_FLOAT_EQ(data[4], 0.0f);
+    EXPECT_FLOAT_EQ(data[5], 1.0f);
+}
+
 TEST(PreprocessImageTest, RejectsBadRank) {
     cv::Mat mat(2, 2, CV_8UC3, cv::Scalar(0, 0, 255));  // BGR red
     Ort::AllocatorWithDefaultOptions allocator;
