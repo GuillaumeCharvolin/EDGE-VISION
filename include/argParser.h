@@ -10,8 +10,8 @@
 /**
  * @brief Parsing of arguments given to the program file with --args
  *
- * --input can be a .jpg image or a .mp4/.avi video. --output must match it (.jpg for an image,
- * .mp4 for a video), and --detections is refused for a video.
+ * --input can be a .jpg image, a .mp4/.avi video, or a camera index (e.g. 0). --output must match it
+ * (.jpg for an image, .mp4 for a video or camera), and --detections is refused for a video or camera.
  *
  * This function ensure the required arguments are given to the program, verify their compliance (file exist, correct format)
  * and make these arguments ready to be used.

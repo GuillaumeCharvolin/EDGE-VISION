@@ -5,11 +5,21 @@
 #include "preprocess.h"
 #include "serialize.h"
 
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <fstream>
 #include <iostream>
 
 namespace {
+
+// Set by Ctrl+C (SIGINT). The frame loop checks it and stops cleanly, so the camera is released
+// and the output video is finalised. A signal handler may only write to a lock-free atomic.
+std::atomic<bool> stopRequested{false};
+
+void onSigint(int) {
+    stopRequested = true;
+}
 
 int runImage(Model& model, const AppConfig& config) {
     std::optional<cv::Mat> matOpt = loadImage(config.inputFile);
@@ -53,16 +63,14 @@ int runImage(Model& model, const AppConfig& config) {
     return 0;
 }
 
-int runVideo(Model& model, const AppConfig& config) {
+// Frame loop shared by video files and cameras. With showWindow, frames are displayed live
+// and 'q' or Esc stops the loop.
+int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, bool showWindow) {
     using Clock = std::chrono::steady_clock;
+    const std::string windowName = "edge_vision";
 
-    cv::VideoCapture capture(config.inputFile.string());
-    if (!capture.isOpened()) {
-        std::cerr << "Error: Could not open the video at: " << config.inputFile.string() << std::endl;
-        return 1;
-    }
-
-    // Write the output at the same rate as the input, so it plays at normal speed.
+    // Write the output at the same rate as the input, so a video file plays at normal speed.
+    // For a camera this is the camera rate, higher than what we process: the recording plays too fast.
     double inputFps = capture.get(cv::CAP_PROP_FPS);
     if (inputFps <= 0) {
         inputFps = 30.0;
@@ -75,7 +83,7 @@ int runVideo(Model& model, const AppConfig& config) {
     const Clock::time_point start = Clock::now();
     Clock::time_point previous = start;
 
-    while (capture.read(frame)) {
+    while (!stopRequested && capture.read(frame)) {
         std::optional<std::vector<Detection>> detectionsOpt = detect(model, frame);
         if (!detectionsOpt) {
             return 1;
@@ -104,23 +112,62 @@ int runVideo(Model& model, const AppConfig& config) {
             writer.write(frame);
         }
 
+        if (showWindow) {
+            cv::imshow(windowName, frame);
+            const int key = cv::waitKey(1);
+            if (key == 'q' || key == 27) {  // 27 = Esc
+                stopRequested = true;
+            }
+        }
+
         ++frameCount;
         if (frameCount % 100 == 0) {
             std::cout << "  " << frameCount << " frames, FPS " << smoothedFps << '\n';
         }
     }
 
-    if (frameCount == 0) {
-        std::cerr << "Error: No frame could be read from: " << config.inputFile.string() << std::endl;
+    if (showWindow) {
+        cv::destroyWindow(windowName);
+    }
+    if (stopRequested) {
+        std::cout << "Stopped by user\n";
+    }
+
+    if (frameCount == 0 && !stopRequested) {
+        std::cerr << "Error: No frame could be read from the input" << std::endl;
         return 1;
     }
 
     const double totalSeconds = std::chrono::duration<double>(Clock::now() - start).count();
-    std::cout << "Processed " << frameCount << " frames, mean FPS " << frameCount / totalSeconds << '\n';
+    std::cout << "Processed " << frameCount << " frames, mean FPS "
+              << (totalSeconds > 0 ? frameCount / totalSeconds : 0.0) << '\n';
     if (!config.outputFile.empty()) {
         std::cout << "Saved " << config.outputFile.string() << '\n';
     }
     return 0;
+}
+
+int runVideoFile(Model& model, const AppConfig& config) {
+    cv::VideoCapture capture(config.inputFile.string());
+    if (!capture.isOpened()) {
+        std::cerr << "Error: Could not open the video at: " << config.inputFile.string() << std::endl;
+        return 1;
+    }
+    return runStream(model, config, capture, /*showWindow=*/false);
+}
+
+int runCamera(Model& model, const AppConfig& config) {
+    cv::VideoCapture capture(*config.cameraIndex);
+    if (!capture.isOpened()) {
+        std::cerr << "Error: Could not open camera " << *config.cameraIndex << std::endl;
+        return 1;
+    }
+    // Keep at most one frame waiting, so we always process a recent frame instead of an old one
+    // when inference is slower than the camera. Some backends ignore this setting.
+    capture.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+    std::cout << "Camera " << *config.cameraIndex << " opened. Press q, Esc or Ctrl+C to stop.\n";
+    return runStream(model, config, capture, /*showWindow=*/true);
 }
 
 }  // namespace
@@ -138,8 +185,13 @@ int main(int argc, char** argv) {
     }
     Model model = std::move(*modelOpt);
 
+    std::signal(SIGINT, onSigint);
+
+    if (config.cameraIndex) {
+        return runCamera(model, config);
+    }
     if (isVideoFile(config.inputFile)) {
-        return runVideo(model, config);
+        return runVideoFile(model, config);
     }
     return runImage(model, config);
 }

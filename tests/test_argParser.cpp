@@ -215,3 +215,48 @@ TEST_F(ArgParserFixture, VideoInputRefusesDetections) {
 
     EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
 }
+
+TEST_F(ArgParserFixture, CameraIndexAccepted) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", "0", "--output", "out.mp4"};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    ASSERT_TRUE(configOpt->cameraIndex.has_value());
+    EXPECT_EQ(*configOpt->cameraIndex, 0);
+    EXPECT_TRUE(configOpt->inputFile.empty());
+}
+
+TEST_F(ArgParserFixture, FileInputHasNoCameraIndex) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string()};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_FALSE(configOpt->cameraIndex.has_value());
+}
+
+TEST_F(ArgParserFixture, NegativeCameraIndexRejected) {
+    std::vector<std::string> args = {"edge_vision", "--model", relativeModelPath.string(), "--input", "-1"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, CameraNeedsMp4Output) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", "0", "--output", "out.jpg"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, CameraRefusesDetections) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", "0", "--detections", "dets.csv"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}

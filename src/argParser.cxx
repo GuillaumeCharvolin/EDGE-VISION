@@ -2,6 +2,7 @@
 #include "argParser.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <vector>
 
@@ -27,6 +28,11 @@ std::function<std::string(const std::string&)> outputFileCheck(const std::vector
 
 }  // namespace
 
+// A camera is given to --input as its index: a plain non-negative number like "0".
+bool isCameraIndex(const std::string& input) {
+    return !input.empty() && std::all_of(input.begin(), input.end(), ::isdigit);
+}
+
 bool isVideoFile(const std::filesystem::path& file) {
     return file.extension() == ".mp4" || file.extension() == ".avi";
 }
@@ -45,11 +51,17 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
             return std::string();
         });
 
-    app.add_option("--input", config.inputFile, "Path to the input jpg image, or mp4/avi video")
+    std::string input;
+    app.add_option("--input", input, "Path to the input jpg image or mp4/avi video, or a camera index (e.g. 0)")
         ->required()
-        ->check(CLI::ExistingFile)
-        ->check([](const std::string& filename) {
-            const std::filesystem::path path(filename);
+        ->check([](const std::string& input) {
+            if (isCameraIndex(input)) {
+                return std::string();
+            }
+            const std::filesystem::path path(input);
+            if (!std::filesystem::is_regular_file(path)) {
+                return std::string("Input file does not exist: ") + input;
+            }
             if (path.extension() != ".jpg" && !isVideoFile(path)) {
                 return std::string("Input file must have a .jpg, .mp4 or .avi extension");
             };
@@ -70,22 +82,27 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
         return std::nullopt;
     }
 
-    // Checks that involve several options together.
-    const bool videoInput = isVideoFile(config.inputFile);
+    if (isCameraIndex(input)) {
+        config.cameraIndex = std::stoi(input);
+    } else {
+        config.inputFile = std::filesystem::absolute(input);
+    }
+
+    // Checks that involve several options together. A camera follows the same rules as a video.
+    const bool videoInput = config.cameraIndex.has_value() || isVideoFile(config.inputFile);
     if (!config.outputFile.empty()) {
         const std::string expected = videoInput ? ".mp4" : ".jpg";
         if (config.outputFile.extension() != expected) {
             std::cerr << "--output: must be a " << expected << " file when --input is "
-                      << (videoInput ? "a video" : "an image") << std::endl;
+                      << (videoInput ? "a video or a camera" : "an image") << std::endl;
             return std::nullopt;
         }
     }
     if (videoInput && !config.detectionsFile.empty()) {
-        std::cerr << "--detections: not supported for video input yet" << std::endl;
+        std::cerr << "--detections: not supported for video or camera input yet" << std::endl;
         return std::nullopt;
     }
 
-    config.inputFile = std::filesystem::absolute(config.inputFile);
     config.modelFile = std::filesystem::absolute(config.modelFile);
     if (!config.outputFile.empty()) {
         config.outputFile = std::filesystem::absolute(config.outputFile);

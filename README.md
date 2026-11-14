@@ -25,9 +25,16 @@ https://medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-c
 # build & run on a video, save it with boxes and FPS (sample: ./scripts/download_sample.sh)
 ./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input samples/vtest.avi --output out.mp4
 
+# build & run on the webcam (0 = /dev/video0), live window; stop with q, Esc or Ctrl+C
+./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input 0
+
 ./edge-vision.sh -t     # build & tests
 ./edge-vision.sh -d     # build & docs
 ```
+
+Known limitation: with a camera, `--output out.mp4` is written at the camera frame rate (often 30 FPS)
+while frames are processed at a lower rate (about 13 FPS on CPU). Frames the program is too slow for are
+dropped, so the recording plays faster than real time. The live window is not affected.
 
 # Model
 

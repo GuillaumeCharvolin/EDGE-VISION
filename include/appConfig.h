@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <optional>
 
 /**
  * @file appConfig.h
@@ -17,7 +18,11 @@ struct AppConfig {
     std::filesystem::path modelFile;
 
     /// The absolute path to the input given with --input (a .jpg image, or a .mp4/.avi video).
+    /// Empty when the input is a camera.
     std::filesystem::path inputFile;
+
+    /// The camera index given with --input (e.g. 0 for /dev/video0). Empty when the input is a file.
+    std::optional<int> cameraIndex;
 
     /// The absolute path where the image (.jpg) or video (.mp4) with drawn boxes is saved (--output). Empty if not given.
     std::filesystem::path outputFile;
