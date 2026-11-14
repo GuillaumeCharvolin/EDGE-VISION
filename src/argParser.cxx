@@ -75,6 +75,14 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
     app.add_option("--detections", config.detectionsFile, "Path where the detections are saved as csv")
         ->check(outputFileCheck({".csv"}));
 
+    app.add_option("--timings", config.timingsFile,
+                   "Path where per-frame stage timings are saved as csv (video or camera only)")
+        ->check(outputFileCheck({".csv"}));
+
+    app.add_option("--warmup", config.warmupFrames,
+                   "Number of first frames left out of the timings csv (default 10)")
+        ->check(CLI::NonNegativeNumber);
+
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
@@ -102,6 +110,10 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
         std::cerr << "--detections: not supported for video or camera input yet" << std::endl;
         return std::nullopt;
     }
+    if (!videoInput && !config.timingsFile.empty()) {
+        std::cerr << "--timings: only for video or camera input" << std::endl;
+        return std::nullopt;
+    }
 
     config.modelFile = std::filesystem::absolute(config.modelFile);
     if (!config.outputFile.empty()) {
@@ -109,6 +121,9 @@ std::optional<AppConfig> parseArguments(int argc, char** argv) {
     }
     if (!config.detectionsFile.empty()) {
         config.detectionsFile = std::filesystem::absolute(config.detectionsFile);
+    }
+    if (!config.timingsFile.empty()) {
+        config.timingsFile = std::filesystem::absolute(config.timingsFile);
     }
 
     return config;

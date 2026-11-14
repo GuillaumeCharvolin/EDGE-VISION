@@ -2,6 +2,7 @@
 #include <ostream>
 #include <vector>
 
+#include "pipeline.h"
 #include "postprocess.h"
 
 /**
@@ -20,3 +21,23 @@
  * @param detections Detections in original image coordinates.
  */
 void writeDetectionsCsv(std::ostream& out, const std::vector<Detection>& detections);
+
+/**
+ * @brief Write the header line of the timings CSV.
+ *
+ * Columns: frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms
+ *
+ * @param out Stream to write to.
+ */
+void writeTimingsCsvHeader(std::ostream& out);
+
+/**
+ * @brief Write one row of the timings CSV (one frame), times in milliseconds with 3 decimals.
+ *
+ * Rows are written one by one, so the file is complete even if the program is stopped with Ctrl+C.
+ *
+ * @param out Stream to write to.
+ * @param frameIndex Index of the frame in the input, starting at 0 (warm-up frames included).
+ * @param timings Time spent in each stage for this frame.
+ */
+void writeTimingsCsvRow(std::ostream& out, int frameIndex, const StageTimings& timings);

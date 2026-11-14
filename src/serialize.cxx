@@ -13,3 +13,14 @@ void writeDetectionsCsv(std::ostream& out, const std::vector<Detection>& detecti
             << det.box.width << ',' << det.box.height << '\n';
     }
 }
+
+void writeTimingsCsvHeader(std::ostream& out) {
+    out << "frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms\n";
+}
+
+void writeTimingsCsvRow(std::ostream& out, int frameIndex, const StageTimings& timings) {
+    out << frameIndex << ',' << std::fixed << std::setprecision(3)
+        << timings.captureMs << ',' << timings.preprocessMs << ','
+        << timings.inferenceMs << ',' << timings.postprocessMs << ','
+        << timings.totalMs << '\n';
+}

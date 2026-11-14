@@ -33,3 +33,22 @@ TEST(WriteDetectionsCsvTest, KeepsOrder) {
               "0,person,0.9000,1.00,2.00,3.00,4.00\n"
               "16,dog,0.5000,10.00,20.00,30.00,40.00\n");
 }
+
+TEST(WriteTimingsCsvTest, HeaderOnly) {
+    std::ostringstream out;
+    writeTimingsCsvHeader(out);
+
+    EXPECT_EQ(out.str(), "frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms\n");
+}
+
+TEST(WriteTimingsCsvTest, TwoRows) {
+    std::ostringstream out;
+    writeTimingsCsvHeader(out);
+    writeTimingsCsvRow(out, 10, {1.5, 4.25, 62.0, 0.1234, 75.0});
+    writeTimingsCsvRow(out, 11, {2.0, 4.0, 61.5, 0.1, 73.9999});
+
+    EXPECT_EQ(out.str(),
+              "frame,capture_ms,preprocess_ms,inference_ms,postprocess_ms,total_ms\n"
+              "10,1.500,4.250,62.000,0.123,75.000\n"
+              "11,2.000,4.000,61.500,0.100,74.000\n");
+}

@@ -77,14 +77,31 @@ int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, 
     }
     cv::VideoWriter writer;
 
+    std::ofstream timingsCsv;
+    if (!config.timingsFile.empty()) {
+        timingsCsv.open(config.timingsFile);
+        if (!timingsCsv) {
+            std::cerr << "Error: Could not open the timings file: " << config.timingsFile.string() << std::endl;
+            return 1;
+        }
+        writeTimingsCsvHeader(timingsCsv);
+    }
+
     cv::Mat frame;
     int frameCount = 0;
     double smoothedFps = 0.0;
     const Clock::time_point start = Clock::now();
     Clock::time_point previous = start;
 
-    while (!stopRequested && capture.read(frame)) {
-        std::optional<std::vector<Detection>> detectionsOpt = detect(model, frame);
+    while (!stopRequested) {
+        StageTimings timings;
+        const Clock::time_point frameStart = Clock::now();
+        if (!capture.read(frame)) {
+            break;  // end of the video file, or camera disconnected
+        }
+        timings.captureMs = std::chrono::duration<double, std::milli>(Clock::now() - frameStart).count();
+
+        std::optional<std::vector<Detection>> detectionsOpt = detect(model, frame, &timings);
         if (!detectionsOpt) {
             return 1;
         }
@@ -120,6 +137,12 @@ int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, 
             }
         }
 
+        // Warm-up frames are slower (memory allocation, cold caches) and left out of the csv.
+        if (timingsCsv.is_open() && frameCount >= config.warmupFrames) {
+            timings.totalMs = std::chrono::duration<double, std::milli>(Clock::now() - frameStart).count();
+            writeTimingsCsvRow(timingsCsv, frameCount, timings);
+        }
+
         ++frameCount;
         if (frameCount % 100 == 0) {
             std::cout << "  " << frameCount << " frames, FPS " << smoothedFps << '\n';
@@ -143,6 +166,9 @@ int runStream(Model& model, const AppConfig& config, cv::VideoCapture& capture, 
               << (totalSeconds > 0 ? frameCount / totalSeconds : 0.0) << '\n';
     if (!config.outputFile.empty()) {
         std::cout << "Saved " << config.outputFile.string() << '\n';
+    }
+    if (timingsCsv.is_open()) {
+        std::cout << "Saved " << config.timingsFile.string() << '\n';
     }
     return 0;
 }

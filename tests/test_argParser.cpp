@@ -260,3 +260,44 @@ TEST_F(ArgParserFixture, CameraRefusesDetections) {
 
     EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
 }
+
+TEST_F(ArgParserFixture, TimingsWithVideoAccepted) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeVideoPath.string(),
+        "--timings", "timings.csv"};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_EQ(configOpt->timingsFile, std::filesystem::absolute("timings.csv"));
+    EXPECT_EQ(configOpt->warmupFrames, 10);
+}
+
+TEST_F(ArgParserFixture, TimingsWithImageRejected) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeImagePath.string(),
+        "--timings", "timings.csv"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}
+
+TEST_F(ArgParserFixture, WarmupIsSet) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeVideoPath.string(),
+        "--warmup", "0"};
+    auto argv = makeArgv(args);
+
+    auto configOpt = parseArguments(static_cast<int>(args.size()), argv.data());
+    ASSERT_TRUE(configOpt.has_value());
+    EXPECT_EQ(configOpt->warmupFrames, 0);
+}
+
+TEST_F(ArgParserFixture, NegativeWarmupRejected) {
+    std::vector<std::string> args = {
+        "edge_vision", "--model", relativeModelPath.string(), "--input", relativeVideoPath.string(),
+        "--warmup", "-1"};
+    auto argv = makeArgv(args);
+
+    EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
+}

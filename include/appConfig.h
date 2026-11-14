@@ -29,4 +29,10 @@ struct AppConfig {
 
     /// The absolute path where the detections are saved as csv (--detections). Empty if not given.
     std::filesystem::path detectionsFile;
+
+    /// The absolute path where per-frame stage timings are saved as csv (--timings). Empty if not given.
+    std::filesystem::path timingsFile;
+
+    /// Number of first frames left out of the timings csv (--warmup), because they are slower.
+    int warmupFrames = 10;
 };

@@ -25,6 +25,9 @@ https://medium.com/@massimilianoriva96/onnxruntime-integration-with-ubuntu-and-c
 # build & run on a video, save it with boxes and FPS (sample: ./scripts/download_sample.sh)
 ./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input samples/vtest.avi --output out.mp4
 
+# build & run on a video, save per-frame stage timings (first 10 frames skipped, see --warmup)
+./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input samples/vtest.avi --timings timings.csv
+
 # build & run on the webcam (0 = /dev/video0), live window; stop with q, Esc or Ctrl+C
 ./edge-vision.sh -r --model models/yolov7-tiny/yolov7-tiny.onnx --input 0
 
