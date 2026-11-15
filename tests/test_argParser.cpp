@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <unistd.h>  // getpid
+
 #include "argParser.h"
 #include "appConfig.h"
 
@@ -48,6 +50,10 @@ TEST(ArgParserTest, FilesDontExist) {
     EXPECT_EQ(parseArguments(static_cast<int>(args.size()), argv.data()), std::nullopt);
 }
 
+// Each test runs in its own new, empty folder, with three small files to point the options at.
+// The paths stay relative, so the tests can check that the parser makes them absolute.
+// A separate folder per test matters when tests run in parallel (ctest -j): with one shared
+// folder, a test finishing deletes the files another test is still using.
 class ArgParserFixture : public ::testing::Test {
 protected:
     std::filesystem::path relativeModelPath = "existingModel.onnx";
@@ -55,16 +61,26 @@ protected:
     std::filesystem::path relativeVideoPath = "existingVideo.avi";
 
     void SetUp() override {
+        const std::string testName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        testDir_ = std::filesystem::temp_directory_path() /
+                   ("edge_vision_argParser_" + testName + "_" + std::to_string(::getpid()));
+        std::filesystem::create_directories(testDir_);
+        previousDir_ = std::filesystem::current_path();
+        std::filesystem::current_path(testDir_);
+
         std::ofstream(relativeModelPath).put('0');
         std::ofstream(relativeImagePath).put('0');
         std::ofstream(relativeVideoPath).put('0');
     }
 
     void TearDown() override {
-        std::filesystem::remove(relativeModelPath);
-        std::filesystem::remove(relativeImagePath);
-        std::filesystem::remove(relativeVideoPath);
+        std::filesystem::current_path(previousDir_);
+        std::filesystem::remove_all(testDir_);
     }
+
+private:
+    std::filesystem::path testDir_;
+    std::filesystem::path previousDir_;
 };
 
 TEST_F(ArgParserFixture, WrongFormatFiles) {
