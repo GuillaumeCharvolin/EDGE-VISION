@@ -86,5 +86,6 @@ TEST(VideoOutputTest, WritesAllFrames) {
     cv::VideoCapture capture(file.string());
     ASSERT_TRUE(capture.isOpened());
     EXPECT_EQ(capture.get(cv::CAP_PROP_FRAME_COUNT), 3);
+    EXPECT_DOUBLE_EQ(capture.get(cv::CAP_PROP_FPS), 10.0);  // the rate given to VideoOutput
     std::filesystem::remove(file);
 }

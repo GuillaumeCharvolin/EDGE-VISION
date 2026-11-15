@@ -68,3 +68,40 @@ TEST(UnletterboxTest, ClipsBoxToImage) {
     EXPECT_FLOAT_EQ(out.box.width, 80.0f);    // right edge 1400 → clipped to 1280
     EXPECT_FLOAT_EQ(out.box.height, 100.0f);  // bottom (210 - 160) / 0.5 = 100
 }
+
+TEST(DecodeOutputTest, ScoreEqualToMinScoreIsKept) {
+    std::vector<float> data = {0, 0, 0, 10, 10, 0, 0.5f};
+    std::vector<int64_t> shape = {1, 7};
+
+    auto detsOpt = decodeOutput(data.data(), shape, 0.5f);
+    ASSERT_TRUE(detsOpt.has_value());
+    EXPECT_EQ(detsOpt->size(), 1u);
+}
+
+TEST(DecodeOutputTest, DefaultMinScoreIsQuarter) {
+    // Without minScore, the threshold is 0.25: 0.30 is kept, 0.20 is dropped.
+    std::vector<float> data = {
+        0, 0, 0, 10, 10, 0, 0.30f,
+        0, 0, 0, 10, 10, 1, 0.20f,
+    };
+    std::vector<int64_t> shape = {2, 7};
+
+    auto detsOpt = decodeOutput(data.data(), shape);
+    ASSERT_TRUE(detsOpt.has_value());
+    ASSERT_EQ(detsOpt->size(), 1u);
+    EXPECT_FLOAT_EQ((*detsOpt)[0].score, 0.30f);
+}
+
+TEST(UnletterboxTest, UsesHorizontalPaddingAndScale) {
+    // 500x1000 image letterboxed into 640x640: scale 0.64, 160 px of padding on the left.
+    // Both offsets are non-zero and different, so mixing up x and y gives a wrong answer.
+    LetterboxInfo info{0.64f, 160, 0};
+    Detection det{0, 0.9f, cv::Rect2f(224, 64, 64, 128)};
+
+    Detection out = unletterbox(det, info, 500, 1000);
+
+    EXPECT_FLOAT_EQ(out.box.x, 100.0f);       // (224 - 160) / 0.64
+    EXPECT_FLOAT_EQ(out.box.y, 100.0f);       // (64 - 0) / 0.64
+    EXPECT_FLOAT_EQ(out.box.width, 100.0f);   // 64 / 0.64
+    EXPECT_FLOAT_EQ(out.box.height, 200.0f);  // 128 / 0.64
+}

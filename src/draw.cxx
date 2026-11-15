@@ -32,25 +32,33 @@ std::string cocoClassName(int classId) {
     return cocoNames[classId];
 }
 
+std::string detectionLabel(const Detection& det) {
+    char label[64];
+    std::snprintf(label, sizeof(label), "%s %.2f", cocoClassName(det.classId).c_str(), det.score);
+    return label;
+}
+
+std::string fpsLabel(double fps) {
+    char label[32];
+    std::snprintf(label, sizeof(label), "FPS: %.1f", fps);
+    return label;
+}
+
 void drawDetections(cv::Mat& mat, const std::vector<Detection>& detections) {
     const cv::Scalar color(0, 255, 0);  // green (BGR)
 
     for (const Detection& det : detections) {
         cv::rectangle(mat, det.box, color, 2);
 
-        char label[64];
-        std::snprintf(label, sizeof(label), "%s %.2f", cocoClassName(det.classId).c_str(), det.score);
-
         // Label just above the box, or inside it if the box touches the top of the image.
         const int textY = det.box.y > 15 ? static_cast<int>(det.box.y) - 5 : static_cast<int>(det.box.y) + 15;
-        cv::putText(mat, label, cv::Point(static_cast<int>(det.box.x), textY),
+        cv::putText(mat, detectionLabel(det), cv::Point(static_cast<int>(det.box.x), textY),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
     }
 }
 
 void drawFps(cv::Mat& mat, double fps) {
-    char label[32];
-    std::snprintf(label, sizeof(label), "FPS: %.1f", fps);
+    const std::string label = fpsLabel(fps);
 
     int baseline = 0;
     const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.7, 2, &baseline);

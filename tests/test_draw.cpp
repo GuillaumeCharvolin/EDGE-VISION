@@ -12,6 +12,16 @@ TEST(CocoClassNameTest, KnownAndUnknownIds) {
     EXPECT_EQ(cocoClassName(-1), "unknown");
 }
 
+TEST(DetectionLabelTest, ClassNameAndScoreWithTwoDecimals) {
+    EXPECT_EQ(detectionLabel({2, 0.9f, cv::Rect2f()}), "car 0.90");
+    EXPECT_EQ(detectionLabel({0, 0.756f, cv::Rect2f()}), "person 0.76");
+}
+
+TEST(FpsLabelTest, OneDecimal) {
+    EXPECT_EQ(fpsLabel(12.34), "FPS: 12.3");
+    EXPECT_EQ(fpsLabel(8.0), "FPS: 8.0");
+}
+
 TEST(DrawDetectionsTest, DrawsBoxEdgeOnly) {
     cv::Mat mat(200, 200, CV_8UC3, cv::Scalar(0, 0, 0));
     std::vector<Detection> dets = {{2, 0.9f, cv::Rect2f(50, 50, 100, 100)}};
@@ -19,8 +29,9 @@ TEST(DrawDetectionsTest, DrawsBoxEdgeOnly) {
     drawDetections(mat, dets);
 
     const cv::Vec3b black(0, 0, 0);
-    EXPECT_NE(mat.at<cv::Vec3b>(100, 50), black);   // left edge (row, col)
-    EXPECT_NE(mat.at<cv::Vec3b>(149, 100), black);  // bottom edge
+    const cv::Vec3b green(0, 255, 0);  // BGR
+    EXPECT_EQ(mat.at<cv::Vec3b>(100, 50), green);   // left edge (row, col)
+    EXPECT_EQ(mat.at<cv::Vec3b>(149, 100), green);  // bottom edge
     EXPECT_EQ(mat.at<cv::Vec3b>(100, 100), black);  // box center untouched
     EXPECT_EQ(mat.at<cv::Vec3b>(190, 190), black);  // far corner untouched
 }

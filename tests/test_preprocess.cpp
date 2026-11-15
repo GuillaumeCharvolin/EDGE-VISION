@@ -187,3 +187,32 @@ TEST(LetterboxTest, SquareImageHasNoPadding) {
     EXPECT_EQ(info.padX, 0);
     EXPECT_EQ(info.padY, 0);
 }
+
+TEST(LetterboxTest, OddPaddingExtraColumnGoesRight) {
+    // 2x5 (w x h) into 4x8: scale 1.6, width 3.2 -> 3, so 1 column of padding.
+    // It must go on the right: padX = 0, image in columns 0-2, gray in column 3.
+    cv::Mat mat(5, 2, CV_8UC3, cv::Scalar(0, 0, 0));
+    LetterboxInfo info;
+    cv::Mat out = letterbox(mat, 4, 8, info);
+
+    EXPECT_EQ(info.padX, 0);
+    EXPECT_EQ(out.at<cv::Vec3b>(4, 0), cv::Vec3b(0, 0, 0));
+    EXPECT_EQ(out.at<cv::Vec3b>(4, 2), cv::Vec3b(0, 0, 0));
+    EXPECT_EQ(out.at<cv::Vec3b>(4, 3), cv::Vec3b(114, 114, 114));
+}
+
+TEST(LetterboxTest, ResizedSizeIsRoundedNotTruncated) {
+    // 4x7 (w x h) into 10x10: scale 10/7, width 4 * 10/7 = 5.71 -> 6 columns (not 5).
+    // padX = (10 - 6) / 2 = 2: gray columns 0-1 and 8-9, image columns 2-7.
+    cv::Mat mat(7, 4, CV_8UC3, cv::Scalar(0, 0, 0));
+    LetterboxInfo info;
+    cv::Mat out = letterbox(mat, 10, 10, info);
+
+    EXPECT_EQ(info.padX, 2);
+    const cv::Vec3b gray(114, 114, 114);
+    const cv::Vec3b black(0, 0, 0);
+    EXPECT_EQ(out.at<cv::Vec3b>(5, 1), gray);
+    EXPECT_EQ(out.at<cv::Vec3b>(5, 2), black);
+    EXPECT_EQ(out.at<cv::Vec3b>(5, 7), black);
+    EXPECT_EQ(out.at<cv::Vec3b>(5, 8), gray);
+}
